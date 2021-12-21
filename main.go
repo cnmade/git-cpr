@@ -12,6 +12,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -120,10 +122,33 @@ func main() {
 			panic(err)
 		}
 		fmt.Printf("api response: %+v,\n body text: %+v", response, string(bodyAll))
+		if response.Status == "200" {
+			var bodyStructs map[string]interface{}
+			err := json.Unmarshal(bodyAll, &bodyStructs)
+			if err != nil {
+				panic(err)
+			}
+			openUrlInBrowser(bodyStructs["url"].(string))
+		}
 
 	} else {
 
 		//GITLAB
 	}
 
+}
+
+func openUrlInBrowser(url string) {
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	fmt.Printf(" error: %+v", err.Error())
 }
