@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/storage/filesystem"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -87,7 +88,11 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("api response: %+v", response)
+		bodyAll, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("api response: %+v, body text: %+v", response, string(bodyAll))
 
 	} else {
 
