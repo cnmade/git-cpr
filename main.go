@@ -76,15 +76,23 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	rawUrl := strings.Fields(remote.String())
 
-	rawRemoteUrl := strings.TrimSpace(remote.String())
+	if len(rawUrl) < 1 {
+		panic("无法获取远程地址")
+	}
+	rawRemoteUrl := rawUrl[1]
+	//ssp := strings.Fields(rawRemoteUrl)
 	fmt.Printf("remote url: %+v, len: %+v\n", rawRemoteUrl, len(rawRemoteUrl))
+	//fmt.Printf("ssp url: %+v, len: %+v\n", ssp, len(ssp))
+	//fmt.Printf("rUrl: [%+v]\n", strings.TrimSpace(ssp[1]))
+	//return
 
-	repoTheDomain := rawRemoteUrl[7:26]
+	repoTheDomain := rawRemoteUrl[0:19]
 	fmt.Printf("remote host: %+v\n", repoTheDomain)
 
-	r14 := len(rawRemoteUrl) - 64
-	repoName := rawRemoteUrl[26:r14]
+	r14 := len(rawRemoteUrl) - 4
+	repoName := rawRemoteUrl[19:r14]
 	fmt.Printf("remote name: %+v\n", repoName)
 
 	cbName := strings.ReplaceAll(string(hp.Name()), "refs/heads/", "")
@@ -150,5 +158,8 @@ func openUrlInBrowser(url string) {
 	default:
 		err = fmt.Errorf("unsupported platform")
 	}
-	fmt.Printf(" error: %+v", err.Error())
+	if err != nil {
+
+		fmt.Printf(" error: %+v", err.Error())
+	}
 }
