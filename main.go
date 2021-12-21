@@ -122,7 +122,7 @@ func main() {
 			panic(err)
 		}
 		fmt.Printf("api response: %+v,\n body text: %+v", response, string(bodyAll))
-		if response.Status == "200" {
+		if response.Status == "200" || response.Status == "201" {
 			var bodyStructs map[string]interface{}
 			err := json.Unmarshal(bodyAll, &bodyStructs)
 			if err != nil {
