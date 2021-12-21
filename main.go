@@ -17,7 +17,11 @@ import (
 
 func main() {
 
-	baseName := os.Args[1]
+	baseName := "dev"
+	if len(os.Args) > 1 {
+		baseName = os.Args[1]
+	}
+	fmt.Printf("os args:%+v", os.Args)
 	if baseName != "" {
 		//向哪个branch 发merge request
 		fmt.Printf("os arg1: %+v\n", baseName)
@@ -76,7 +80,7 @@ func main() {
 
 	repoTheDomain := rawRemoteUrl[7:26]
 	fmt.Printf("remote host: %+v\n", repoTheDomain)
-	
+
 	r14 := len(rawRemoteUrl) - 64
 	repoName := rawRemoteUrl[26:r14]
 	fmt.Printf("remote name: %+v\n", repoName)
