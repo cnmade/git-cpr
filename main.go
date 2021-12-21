@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/cnmade/gonetrc"
 	"github.com/go-git/go-billy/v5/osfs"
@@ -50,6 +51,21 @@ func main() {
 	fmt.Printf("head: %+v\n", hp)
 	fmt.Println("current branch name: " + hp.Name() + " \n")
 
+	commitIter, err := r.Log(&git.LogOptions{From: hp.Hash()})
+
+	if err != nil {
+		panic(err)
+	}
+	nextCommit, err := commitIter.Next()
+	if err != nil {
+		panic(err)
+	}
+	commitMsg := nextCommit.Message
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("commit Msg: %+v", commitMsg)
+
 	remote, err := r.Remote("origin")
 	if err != nil {
 		panic(err)
@@ -60,7 +76,7 @@ func main() {
 
 	repoTheDomain := rawRemoteUrl[7:26]
 	fmt.Printf("remote host: %+v\n", repoTheDomain)
-
+	
 	r14 := len(rawRemoteUrl) - 64
 	repoName := rawRemoteUrl[26:r14]
 	fmt.Printf("remote name: %+v\n", repoName)
@@ -72,8 +88,15 @@ func main() {
 		//Github
 		ghurl := fmt.Sprintf("https://api.github.com/repos/%s/pulls", repoName)
 		fmt.Printf("ghUrl: %+v\n", ghurl)
-		bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s"}`, cbName, baseName)
-		var jsonStr = []byte(bodyStr)
+		//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
+		githubApiBody := map[string]string{
+			"head":  cbName,
+			"base":  baseName,
+			"title": commitMsg,
+		}
+		fmt.Printf("githubApiBody: %+v\n", githubApiBody)
+		jsonStr, _ := json.Marshal(githubApiBody)
+		fmt.Printf("jsonStr: %+v\n", string(jsonStr))
 		postBody := bytes.NewBuffer(jsonStr)
 		hc, err := http.NewRequest("POST", ghurl, postBody)
 		if err != nil {
@@ -92,7 +115,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("api response: %+v, body text: %+v", response, string(bodyAll))
+		fmt.Printf("api response: %+v,\n body text: %+v", response, string(bodyAll))
 
 	} else {
 
