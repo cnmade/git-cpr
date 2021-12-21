@@ -128,7 +128,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			openUrlInBrowser(bodyStructs["url"].(string))
+			openUrlInBrowser(bodyStructs["html_url"].(string))
 		}
 
 	} else {
