@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -98,53 +99,118 @@ func main() {
 	cbName := strings.ReplaceAll(string(hp.Name()), "refs/heads/", "")
 	fmt.Printf("current branch name:%+v\n", cbName)
 
-	if repoTheDomain == "https://github.com/" {
-		//Github
-		ghurl := fmt.Sprintf("https://api.github.com/repos/%s/pulls", repoName)
-		fmt.Printf("ghUrl: %+v\n", ghurl)
-		//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
-		githubApiBody := map[string]string{
-			"head":  cbName,
-			"base":  baseName,
-			"title": commitMsg,
-		}
-		fmt.Printf("githubApiBody: %+v\n", pp(githubApiBody))
-		jsonStr, _ := json.Marshal(githubApiBody)
-		postBody := bytes.NewBuffer(jsonStr)
-		hc, err := http.NewRequest("POST", ghurl, postBody)
-		if err != nil {
-			panic(err)
-		}
+	switch repoTheDomain {
+	case "https://github.com/":
 
-		u, p := gonetrc.GetCredentials("github.com")
-		hc.SetBasicAuth(u, p)
+		githubCreateNewPr(repoName, cbName, baseName, commitMsg)
+	case "https://gitlab.com":
+		gitlabCreateNewPr(repoName, cbName, baseName, commitMsg)
+	default:
+		gitlabCreateNewPr(repoName, cbName, baseName, commitMsg)
 
-		clt := http.Client{}
-		response, err := clt.Do(hc)
-		if err != nil {
-			panic(err)
-		}
-		bodyAll, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("api response: %+v,\n body text: %+v", pp(response), pp(string(bodyAll)))
-		if response.StatusCode == 200 || response.StatusCode == 201 {
-			var bodyStructs map[string]interface{}
-			err := json.Unmarshal(bodyAll, &bodyStructs)
-			if err != nil {
-				panic(err)
-			}
-			openUrlInBrowser(bodyStructs["html_url"].(string))
-		}
-
-	} else {
-
-		//GITLAB
 	}
 
 }
 
+func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
+
+	//Github
+	ghurl := fmt.Sprintf("https://api.github.com/repos/%s/pulls", repoName)
+	fmt.Printf("ghUrl: %+v\n", ghurl)
+	//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
+	githubApiBody := map[string]string{
+		"head":  cbName,
+		"base":  baseName,
+		"title": commitMsg,
+	}
+	fmt.Printf("githubApiBody: %+v\n", pp(githubApiBody))
+	jsonStr, _ := json.Marshal(githubApiBody)
+	postBody := bytes.NewBuffer(jsonStr)
+
+	host := "github.com"
+	err, response := makeHttpRequest(ghurl, postBody, host)
+	if err != nil {
+		panic(err)
+	}
+	bodyAll, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("api response: %+v,\n body text: %+v", pp(response), pp(string(bodyAll)))
+	if response.StatusCode == 200 || response.StatusCode == 201 {
+		var bodyStructs map[string]interface{}
+		err := json.Unmarshal(bodyAll, &bodyStructs)
+		if err != nil {
+			panic(err)
+		}
+		openUrlInBrowser(bodyStructs["html_url"].(string))
+	}
+}
+
+func gitlabCreateNewPr(repoName, cbName, baseName, commitMsg string) {
+
+	//Github
+	eRepoName := url.QueryEscape(repoName)
+	ghurl := fmt.Sprintf("https://gitlab.com/api/v4/projects/%s/merge_requests", eRepoName)
+	fmt.Printf("glUrl: %+v\n", ghurl)
+	//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
+	githubApiBody := map[string]string{
+		"id":            eRepoName,
+		"source_branch": cbName,
+		"target_branch": baseName,
+		"title":         commitMsg,
+	}
+	fmt.Printf("gitlabApiBody: %+v\n", pp(githubApiBody))
+	jsonStr, _ := json.Marshal(githubApiBody)
+	postBody := bytes.NewBuffer(jsonStr)
+	host := "gitlab.com"
+	err, response := makeHttpRequest(ghurl, postBody, host)
+	if err != nil {
+		panic(err)
+	}
+	bodyAll, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("api response: %+v,\n body text: %+v", pp(response), pp(string(bodyAll)))
+	if response.StatusCode == 200 || response.StatusCode == 201 {
+		var bodyStructs map[string]interface{}
+		err := json.Unmarshal(bodyAll, &bodyStructs)
+		if err != nil {
+			panic(err)
+		}
+		openUrlInBrowser(bodyStructs["web_url"].(string))
+	}
+}
+
+func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, *http.Response) {
+	proxy_config := os.Getenv("HTTP_PROXY")
+	fmt.Printf("proxy config: %+v\n", proxy_config)
+	hc, err := http.NewRequest("POST", ghurl, postBody)
+	if err != nil {
+		panic(err)
+	}
+
+	u, p := gonetrc.GetCredentials(host)
+	hc.SetBasicAuth(u, p)
+	hc.Header.Add("PRIVATE-TOKEN", p)
+
+	hc.Header.Add("Content-Type", "application/json")
+	clt := http.Client{}
+	if proxy_config != "" {
+		proxyUrl, err := url.Parse(proxy_config)
+		if err != nil {
+			fmt.Printf(" error: %+v\n", err)
+		} else {
+
+			clt.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		}
+	}
+	response, err := clt.Do(hc)
+	return err, response
+}
+
+//按照指定宽度，插入换行\n
 func pp(v interface{}) string {
 
 	fstr := fmt.Sprintf("%v", v)
