@@ -53,8 +53,8 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("branches: %+v\n", branches)
-	fmt.Printf("head: %+v\n", hp)
+	fmt.Printf("branches: %+v\n", pp(branches))
+	fmt.Printf("head: %+v\n", pp(hp))
 	fmt.Println("current branch name: " + hp.Name() + " \n")
 
 	commitIter, err := r.Log(&git.LogOptions{From: hp.Hash()})
@@ -108,9 +108,8 @@ func main() {
 			"base":  baseName,
 			"title": commitMsg,
 		}
-		fmt.Printf("githubApiBody: %+v\n", githubApiBody)
+		fmt.Printf("githubApiBody: %+v\n", pp(githubApiBody))
 		jsonStr, _ := json.Marshal(githubApiBody)
-		fmt.Printf("jsonStr: %+v\n", string(jsonStr))
 		postBody := bytes.NewBuffer(jsonStr)
 		hc, err := http.NewRequest("POST", ghurl, postBody)
 		if err != nil {
@@ -129,7 +128,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("api response: %+v,\n body text: %+v", response, string(bodyAll))
+		fmt.Printf("api response: %+v,\n body text: %+v", pp(response), pp(string(bodyAll)))
 		if response.StatusCode == 200 || response.StatusCode == 201 {
 			var bodyStructs map[string]interface{}
 			err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -146,6 +145,50 @@ func main() {
 
 }
 
+func pp(v interface{}) string {
+
+	fstr := fmt.Sprintf("%v", v)
+	if len(fstr) > 80 {
+
+		return prettyPrint(fstr, 80, "\n")
+	}
+	return fstr
+}
+func prettyPrint(body string, limit int, end string) string {
+
+	var charSlice []rune
+
+	// push characters to slice
+	for _, char := range body {
+		charSlice = append(charSlice, char)
+	}
+
+	var result string = ""
+
+	for len(charSlice) >= 1 {
+		// convert slice/array back to string
+		// but insert end at specified limit
+		if limit > len(body) {
+			limit = len(body)
+		}
+
+		result = result + string(charSlice[:limit]) + end
+
+		// discard the elements that were copied over to result
+		charSlice = charSlice[limit:]
+
+		// change the limit
+		// to cater for the last few words in
+		// charSlice
+		if len(charSlice) < limit {
+			limit = len(charSlice)
+		}
+
+	}
+
+	return result
+
+}
 func openUrlInBrowser(url string) {
 	var err error
 	switch runtime.GOOS {
