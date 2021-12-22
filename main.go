@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/cnmade/gonetrc"
 	"github.com/go-git/go-billy/v5/osfs"
@@ -16,7 +15,11 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	jsoniter "github.com/json-iterator/go"
 )
+
+var json = jsoniter.ConfigDefault
 
 func main() {
 
@@ -24,10 +27,10 @@ func main() {
 	if len(os.Args) > 1 {
 		baseName = os.Args[1]
 	}
-	fmt.Printf("os args:%+v", os.Args)
+	fmt.Printf("os args:%#v", os.Args)
 	if baseName != "" {
 		//向哪个branch 发merge request
-		fmt.Printf("os arg1: %+v\n", baseName)
+		fmt.Printf("os arg1: %#v\n", baseName)
 	} else {
 		//默认是dev
 		baseName = "dev"
@@ -54,8 +57,8 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("branches: %+v\n", pp(branches))
-	fmt.Printf("head: %+v\n", pp(hp))
+	fmt.Printf("branches: %#v\n", pp(branches))
+	fmt.Printf("head: %#v\n", pp(hp))
 	fmt.Println("current branch name: " + hp.Name() + " \n")
 
 	commitIter, err := r.Log(&git.LogOptions{From: hp.Hash()})
@@ -71,7 +74,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("commit Msg: %+v", commitMsg)
+	fmt.Printf("commit Msg: %#v", commitMsg)
 
 	remote, err := r.Remote("origin")
 	if err != nil {
@@ -84,29 +87,30 @@ func main() {
 	}
 	rawRemoteUrl := rawUrl[1]
 	//ssp := strings.Fields(rawRemoteUrl)
-	fmt.Printf("remote url: %+v, len: %+v\n", rawRemoteUrl, len(rawRemoteUrl))
-	//fmt.Printf("ssp url: %+v, len: %+v\n", ssp, len(ssp))
-	//fmt.Printf("rUrl: [%+v]\n", strings.TrimSpace(ssp[1]))
+	fmt.Printf("remote url: %#v, len: %#v\n", rawRemoteUrl, len(rawRemoteUrl))
+	//fmt.Printf("ssp url: %#v, len: %#v\n", ssp, len(ssp))
+	//fmt.Printf("rUrl: [%#v]\n", strings.TrimSpace(ssp[1]))
 	//return
 
-	repoTheDomain := rawRemoteUrl[0:19]
-	fmt.Printf("remote host: %+v\n", repoTheDomain)
-
-	r14 := len(rawRemoteUrl) - 4
-	repoName := rawRemoteUrl[19:r14]
-	fmt.Printf("remote name: %+v\n", repoName)
+	u, err := url.Parse(rawRemoteUrl)
+	if err != nil {
+		panic(err)
+	}
+	r14 := len(u.Path) - 4
+	repoName := u.Path[1:r14]
+	fmt.Printf("remote name: %#v\n", repoName)
 
 	cbName := strings.ReplaceAll(string(hp.Name()), "refs/heads/", "")
-	fmt.Printf("current branch name:%+v\n", cbName)
+	fmt.Printf("current branch name:%#v\n", cbName)
 
-	switch repoTheDomain {
-	case "https://github.com/":
+	switch u.Host {
+	case "github.com":
 
 		githubCreateNewPr(repoName, cbName, baseName, commitMsg)
-	case "https://gitlab.com":
-		gitlabCreateNewPr(repoName, cbName, baseName, commitMsg)
+	case "gitlab.com":
+		gitlabCreateNewPr("gitlab.com", repoName, cbName, baseName, commitMsg)
 	default:
-		gitlabCreateNewPr(repoName, cbName, baseName, commitMsg)
+		gitlabCreateNewPr(u.Host, repoName, cbName, baseName, commitMsg)
 
 	}
 
@@ -116,14 +120,14 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 
 	//Github
 	ghurl := fmt.Sprintf("https://api.github.com/repos/%s/pulls", repoName)
-	fmt.Printf("ghUrl: %+v\n", ghurl)
+	fmt.Printf("ghUrl: %#v\n", ghurl)
 	//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
 	githubApiBody := map[string]string{
 		"head":  cbName,
 		"base":  baseName,
 		"title": commitMsg,
 	}
-	fmt.Printf("githubApiBody: %+v\n", pp(githubApiBody))
+	fmt.Printf("githubApiBody: %#v\n", pp(githubApiBody))
 	jsonStr, _ := json.Marshal(githubApiBody)
 	postBody := bytes.NewBuffer(jsonStr)
 
@@ -132,11 +136,13 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("response: %#v\n", response)
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("api response: %+v,\n body text: %+v", pp(response), pp(string(bodyAll)))
+	fmt.Printf("api response: %#v,\n body text: %#v", pp(response), pp(string(bodyAll)))
 	if response.StatusCode == 200 || response.StatusCode == 201 {
 		var bodyStructs map[string]interface{}
 		err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -147,12 +153,12 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 	}
 }
 
-func gitlabCreateNewPr(repoName, cbName, baseName, commitMsg string) {
+func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 
 	//Github
 	eRepoName := url.QueryEscape(repoName)
-	ghurl := fmt.Sprintf("https://gitlab.com/api/v4/projects/%s/merge_requests", eRepoName)
-	fmt.Printf("glUrl: %+v\n", ghurl)
+	ghurl := fmt.Sprintf("https://%s/api/v4/projects/%s/merge_requests", gitHost, eRepoName)
+	fmt.Printf("glUrl: %#v\n", ghurl)
 	//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
 	githubApiBody := map[string]string{
 		"id":            eRepoName,
@@ -160,11 +166,11 @@ func gitlabCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 		"target_branch": baseName,
 		"title":         commitMsg,
 	}
-	fmt.Printf("gitlabApiBody: %+v\n", pp(githubApiBody))
+	fmt.Printf("gitlabApiBody: %#v\n", pp(githubApiBody))
 	jsonStr, _ := json.Marshal(githubApiBody)
 	postBody := bytes.NewBuffer(jsonStr)
-	host := "gitlab.com"
-	err, response := makeHttpRequest(ghurl, postBody, host)
+
+	err, response := makeHttpRequest(ghurl, postBody, gitHost)
 	if err != nil {
 		panic(err)
 	}
@@ -172,7 +178,7 @@ func gitlabCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("api response: %+v,\n body text: %+v", pp(response), pp(string(bodyAll)))
+	fmt.Printf("api response: %#v,\n body text: %#v\n", pp(response), pp(string(bodyAll)))
 	if response.StatusCode == 200 || response.StatusCode == 201 {
 		var bodyStructs map[string]interface{}
 		err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -185,7 +191,7 @@ func gitlabCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 
 func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, *http.Response) {
 	proxy_config := os.Getenv("HTTP_PROXY")
-	fmt.Printf("proxy config: %+v\n", proxy_config)
+	fmt.Printf("proxy config: %#v\n", proxy_config)
 	hc, err := http.NewRequest("POST", ghurl, postBody)
 	if err != nil {
 		panic(err)
@@ -200,7 +206,7 @@ func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, 
 	if proxy_config != "" {
 		proxyUrl, err := url.Parse(proxy_config)
 		if err != nil {
-			fmt.Printf(" error: %+v\n", err)
+			fmt.Printf(" error: %#v\n", err)
 		} else {
 
 			clt.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
@@ -269,6 +275,6 @@ func openUrlInBrowser(url string) {
 	}
 	if err != nil {
 
-		fmt.Printf(" error: %+v", err.Error())
+		fmt.Printf(" error: %#v", err.Error())
 	}
 }
