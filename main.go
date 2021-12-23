@@ -141,7 +141,7 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 	if err != nil {
 		ProcessError(err)
 	}
-	fmt.Printf("response: %#v\n", pp(responseJsonStr))
+	fmt.Printf("response: %#v\n", pp(string(responseJsonStr)))
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
@@ -186,7 +186,7 @@ func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 	if err != nil {
 		ProcessError(err)
 	}
-	fmt.Printf("response: %#v\n", pp(responseJsonStr))
+	fmt.Printf("response: %#v\n", pp(string(responseJsonStr)))
 
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
