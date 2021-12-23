@@ -137,12 +137,16 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 		panic(err)
 	}
 
-	fmt.Printf("response: %#v\n", response)
+	responseJsonStr, err := json.Marshal(response)
+	if err != nil {
+		ProcessError(err)
+	}
+	fmt.Printf("response: %#v\n", pp(responseJsonStr))
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("api response: %#v,\n body text: %#v", pp(response), pp(string(bodyAll)))
+	fmt.Printf("api response body text: %#v", pp(string(bodyAll)))
 	if response.StatusCode == 200 || response.StatusCode == 201 {
 		var bodyStructs map[string]interface{}
 		err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -167,18 +171,29 @@ func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 		"title":         commitMsg,
 	}
 	fmt.Printf("gitlabApiBody: %#v\n", pp(githubApiBody))
-	jsonStr, _ := json.Marshal(githubApiBody)
+	jsonStr, err := json.Marshal(githubApiBody)
+	if err != nil {
+		ProcessError(err)
+	}
 	postBody := bytes.NewBuffer(jsonStr)
 
 	err, response := makeHttpRequest(ghurl, postBody, gitHost)
 	if err != nil {
 		panic(err)
 	}
+
+	responseJsonStr, err := json.Marshal(response)
+	if err != nil {
+		ProcessError(err)
+	}
+	fmt.Printf("response: %#v\n", pp(responseJsonStr))
+
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("api response: %#v,\n body text: %#v\n", pp(response), pp(string(bodyAll)))
+
+	fmt.Printf("api response body text: %#v", pp(string(bodyAll)))
 	if response.StatusCode == 200 || response.StatusCode == 201 {
 		var bodyStructs map[string]interface{}
 		err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -187,6 +202,10 @@ func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 		}
 		openUrlInBrowser(bodyStructs["web_url"].(string))
 	}
+}
+
+func ProcessError(err error) {
+	fmt.Printf("error: %#v\n", err)
 }
 
 func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, *http.Response) {
