@@ -3,6 +3,7 @@ module github.com/cnmade/git-cpr
 go 1.17
 
 require (
+	github.com/cnmade/goencode v1.17.5
 	github.com/cnmade/gonetrc v1.0.0
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
