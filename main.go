@@ -16,12 +16,12 @@ import (
 	"runtime"
 	"strings"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/cnmade/goencode/json"
 )
 
-var json = jsoniter.ConfigDefault
-
 func main() {
+
+	json.UnsupportedBehaviour = json.UnsupportedBehaviourWithNull
 
 	baseName := "dev"
 	if len(os.Args) > 1 {
