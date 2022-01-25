@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/cnmade/goencode/json"
 	"github.com/cnmade/gonetrc"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
@@ -15,8 +16,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-
-	"github.com/cnmade/goencode/json"
 )
 
 func main() {
@@ -75,6 +74,12 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("commit Msg: %s \n", commitMsg)
+
+	rawCommitMsg := []rune(commitMsg)
+	if len(rawCommitMsg) > 50 {
+		commitMsg = string(rawCommitMsg[:50])
+		fmt.Printf("new commitMsg after substr: %s \n", commitMsg)
+	}
 
 	remote, err := r.Remote("origin")
 	if err != nil {
