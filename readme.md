@@ -20,6 +20,7 @@
 1. github.com
 2. gitlab.com
 3. 自己托管的gitlab实例
+
 ## 使用
 
 运行命令
@@ -27,3 +28,5 @@
 git cpr [可选，如dev或者master]
 ```
 表示建立新的pull request，目标合并branch 是dev或者是master
+
+您也可以配合SmartGit这样的工具来使用。
