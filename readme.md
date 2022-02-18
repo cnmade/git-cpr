@@ -9,7 +9,7 @@
 请准备Golang 1.17+以上版本。
 
 ```bash
-go install github.com/cnmade/git-cpr
+go install github.com/cnmade/git-cpr@master
 ```
 
 ## 环境需求
