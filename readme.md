@@ -2,6 +2,16 @@
 
 一个快速创建 pull request 的工具。
 
+## 编译
+
+为了让git 能跟git-cpr，也就是本软件协同工作，你需要构建一下 git-cpr
+
+请准备Golang 1.17+以上版本。
+
+```bash
+go install github.com/cnmade/git-cpr
+```
+
 ## 环境需求
 
 1. linux/windows/macos
