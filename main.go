@@ -250,47 +250,10 @@ func pp(v interface{}) string {
 	default:
 		fstr = fmt.Sprintf("%v", v)
 	}
-	if len(fstr) > 80 {
 
-		return prettyPrint(fstr, 80, "\n")
-	}
 	return fstr
 }
-func prettyPrint(body string, limit int, end string) string {
 
-	var charSlice []rune
-
-	// push characters to slice
-	for _, char := range body {
-		charSlice = append(charSlice, char)
-	}
-
-	var result string = ""
-
-	for len(charSlice) >= 1 {
-		// convert slice/array back to string
-		// but insert end at specified limit
-		if limit > len(body) {
-			limit = len(body)
-		}
-
-		result = result + string(charSlice[:limit]) + end
-
-		// discard the elements that were copied over to result
-		charSlice = charSlice[limit:]
-
-		// change the limit
-		// to cater for the last few words in
-		// charSlice
-		if len(charSlice) < limit {
-			limit = len(charSlice)
-		}
-
-	}
-
-	return result
-
-}
 func openUrlInBrowser(url string) {
 	var err error
 	switch runtime.GOOS {
