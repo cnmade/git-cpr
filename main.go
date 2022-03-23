@@ -251,7 +251,22 @@ func pp(v interface{}) string {
 		fstr = fmt.Sprintf("%v", v)
 	}
 
-	return fstr
+	nfstr := []rune(fstr)
+	ofstr := chunkpp(nfstr, 80)
+	outStr := ""
+	for _, v := range ofstr {
+		outStr += string(v) + "\n"
+	}
+
+	return outStr
+}
+
+func chunkpp(items []rune, chunkSize int) (chunks [][]rune) {
+	for chunkSize < len(items) {
+		items, chunks = items[chunkSize:], append(chunks, items[0:chunkSize:chunkSize])
+	}
+
+	return append(chunks, items)
 }
 
 func openUrlInBrowser(url string) {
