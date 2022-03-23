@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/cnmade/goencode/json"
 	"github.com/cnmade/gonetrc"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
@@ -15,8 +16,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-
-	"github.com/cnmade/goencode/json"
 )
 
 func main() {
@@ -27,10 +26,10 @@ func main() {
 	if len(os.Args) > 1 {
 		baseName = os.Args[1]
 	}
-	fmt.Printf("os args:%#v", os.Args)
+	fmt.Printf("os args:%#v \n", os.Args)
 	if baseName != "" {
 		//向哪个branch 发merge request
-		fmt.Printf("os arg1: %#v\n", baseName)
+		fmt.Printf("os arg1: %s \n", baseName)
 	} else {
 		//默认是dev
 		baseName = "dev"
@@ -57,8 +56,8 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("branches: %#v\n", pp(branches))
-	fmt.Printf("head: %#v\n", pp(hp))
+	fmt.Printf("branches: %s \n", pp(branches))
+	fmt.Printf("head: %s \n", pp(hp))
 	fmt.Println("current branch name: " + hp.Name() + " \n")
 
 	commitIter, err := r.Log(&git.LogOptions{From: hp.Hash()})
@@ -74,7 +73,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("commit Msg: %#v", commitMsg)
+	fmt.Printf("commit Msg: %s \n", commitMsg)
+
+	rawCommitMsg := []rune(commitMsg)
+	if len(rawCommitMsg) > 50 {
+		commitMsg = string(rawCommitMsg[:50])
+		fmt.Printf("new commitMsg after substr: %s \n", commitMsg)
+	}
 
 	remote, err := r.Remote("origin")
 	if err != nil {
@@ -83,11 +88,11 @@ func main() {
 	rawUrl := strings.Fields(remote.String())
 
 	if len(rawUrl) < 1 {
-		panic("无法获取远程地址")
+		panic("无法获取远程地址 \n")
 	}
 	rawRemoteUrl := rawUrl[1]
 	//ssp := strings.Fields(rawRemoteUrl)
-	fmt.Printf("remote url: %#v, len: %#v\n", rawRemoteUrl, len(rawRemoteUrl))
+	fmt.Printf("remote url: %s, len: %v \n", rawRemoteUrl, len(rawRemoteUrl))
 	//fmt.Printf("ssp url: %#v, len: %#v\n", ssp, len(ssp))
 	//fmt.Printf("rUrl: [%#v]\n", strings.TrimSpace(ssp[1]))
 	//return
@@ -98,10 +103,10 @@ func main() {
 	}
 	r14 := len(u.Path) - 4
 	repoName := u.Path[1:r14]
-	fmt.Printf("remote name: %#v\n", repoName)
+	fmt.Printf("remote name: %s \n", repoName)
 
 	cbName := strings.ReplaceAll(string(hp.Name()), "refs/heads/", "")
-	fmt.Printf("current branch name:%#v\n", cbName)
+	fmt.Printf("current branch name:%s \n", cbName)
 
 	switch u.Host {
 	case "github.com":
@@ -120,14 +125,14 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 
 	//Github
 	ghurl := fmt.Sprintf("https://api.github.com/repos/%s/pulls", repoName)
-	fmt.Printf("ghUrl: %#v\n", ghurl)
+	fmt.Printf("ghUrl: %s \n", ghurl)
 	//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
 	githubApiBody := map[string]string{
 		"head":  cbName,
 		"base":  baseName,
 		"title": commitMsg,
 	}
-	fmt.Printf("githubApiBody: %#v\n", pp(githubApiBody))
+	fmt.Printf("githubApiBody: %s \n", pp(githubApiBody))
 	jsonStr, _ := json.Marshal(githubApiBody)
 	postBody := bytes.NewBuffer(jsonStr)
 
@@ -137,12 +142,16 @@ func githubCreateNewPr(repoName, cbName, baseName, commitMsg string) {
 		panic(err)
 	}
 
-	fmt.Printf("response: %#v\n", response)
+	responseJsonStr, err := json.Marshal(response)
+	if err != nil {
+		ProcessError(err)
+	}
+	fmt.Printf("response: %s \n", pp(string(responseJsonStr)))
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("api response: %#v,\n body text: %#v", pp(response), pp(string(bodyAll)))
+	fmt.Printf("api response body text: %s \n", pp(string(bodyAll)))
 	if response.StatusCode == 200 || response.StatusCode == 201 {
 		var bodyStructs map[string]interface{}
 		err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -158,7 +167,7 @@ func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 	//Github
 	eRepoName := url.QueryEscape(repoName)
 	ghurl := fmt.Sprintf("https://%s/api/v4/projects/%s/merge_requests", gitHost, eRepoName)
-	fmt.Printf("glUrl: %#v\n", ghurl)
+	fmt.Printf("glUrl: %#v \n", ghurl)
 	//bodyStr := fmt.Sprintf(`{"head":"%s","base":"%s", "title":"%s"}`, cbName, baseName, commitMsg)
 	githubApiBody := map[string]string{
 		"id":            eRepoName,
@@ -166,19 +175,30 @@ func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 		"target_branch": baseName,
 		"title":         commitMsg,
 	}
-	fmt.Printf("gitlabApiBody: %#v\n", pp(githubApiBody))
-	jsonStr, _ := json.Marshal(githubApiBody)
+	fmt.Printf("gitlabApiBody: %s \n", pp(githubApiBody))
+	jsonStr, err := json.Marshal(githubApiBody)
+	if err != nil {
+		ProcessError(err)
+	}
 	postBody := bytes.NewBuffer(jsonStr)
 
 	err, response := makeHttpRequest(ghurl, postBody, gitHost)
 	if err != nil {
 		panic(err)
 	}
+
+	responseJsonStr, err := json.Marshal(response)
+	if err != nil {
+		ProcessError(err)
+	}
+	fmt.Printf("response: %s \n", pp(string(responseJsonStr)))
+
 	bodyAll, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("api response: %#v,\n body text: %#v\n", pp(response), pp(string(bodyAll)))
+
+	fmt.Printf("api response body text: %s", pp(string(bodyAll)))
 	if response.StatusCode == 200 || response.StatusCode == 201 {
 		var bodyStructs map[string]interface{}
 		err := json.Unmarshal(bodyAll, &bodyStructs)
@@ -187,6 +207,10 @@ func gitlabCreateNewPr(gitHost, repoName, cbName, baseName, commitMsg string) {
 		}
 		openUrlInBrowser(bodyStructs["web_url"].(string))
 	}
+}
+
+func ProcessError(err error) {
+	fmt.Printf("error: %#v \n", err)
 }
 
 func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, *http.Response) {
@@ -206,7 +230,7 @@ func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, 
 	if proxy_config != "" {
 		proxyUrl, err := url.Parse(proxy_config)
 		if err != nil {
-			fmt.Printf(" error: %#v\n", err)
+			fmt.Printf(" error: %#v \n", err)
 		} else {
 
 			clt.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
@@ -219,48 +243,32 @@ func makeHttpRequest(ghurl string, postBody *bytes.Buffer, host string) (error, 
 //按照指定宽度，插入换行\n
 func pp(v interface{}) string {
 
-	fstr := fmt.Sprintf("%v", v)
-	if len(fstr) > 80 {
-
-		return prettyPrint(fstr, 80, "\n")
+	fstr := ""
+	switch v.(type) {
+	case string:
+		fstr = v.(string)
+	default:
+		fstr = fmt.Sprintf("%v", v)
 	}
-	return fstr
+
+	nfstr := []rune(fstr)
+	ofstr := chunkpp(nfstr, 80)
+	outStr := ""
+	for _, v := range ofstr {
+		outStr += string(v) + "\n"
+	}
+
+	return outStr
 }
-func prettyPrint(body string, limit int, end string) string {
 
-	var charSlice []rune
-
-	// push characters to slice
-	for _, char := range body {
-		charSlice = append(charSlice, char)
+func chunkpp(items []rune, chunkSize int) (chunks [][]rune) {
+	for chunkSize < len(items) {
+		items, chunks = items[chunkSize:], append(chunks, items[0:chunkSize:chunkSize])
 	}
 
-	var result string = ""
-
-	for len(charSlice) >= 1 {
-		// convert slice/array back to string
-		// but insert end at specified limit
-		if limit > len(body) {
-			limit = len(body)
-		}
-
-		result = result + string(charSlice[:limit]) + end
-
-		// discard the elements that were copied over to result
-		charSlice = charSlice[limit:]
-
-		// change the limit
-		// to cater for the last few words in
-		// charSlice
-		if len(charSlice) < limit {
-			limit = len(charSlice)
-		}
-
-	}
-
-	return result
-
+	return append(chunks, items)
 }
+
 func openUrlInBrowser(url string) {
 	var err error
 	switch runtime.GOOS {
@@ -275,6 +283,6 @@ func openUrlInBrowser(url string) {
 	}
 	if err != nil {
 
-		fmt.Printf(" error: %#v", err.Error())
+		fmt.Printf(" error: %s \n", err.Error())
 	}
 }
